@@ -1,0 +1,7 @@
+<Project>
+  <PropertyGroup>
+    <RWDir Condition="'$(RWDir)' == ''">D:\SteamLibrary\steamapps\common\Rain World</RWDir>
+    <ManagedDir>$(RWDir)\RainWorld_Data\Managed</ManagedDir>
+    <BepInExDir>$(RWDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+</Project>

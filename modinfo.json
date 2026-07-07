@@ -1,0 +1,9 @@
+{
+  "id": "trick_spear",
+  "name": "Trick Spear",
+  "version": "0.1.0",
+  "authors": "esphas",
+  "description": "Press a key while holding a spear to perform a spear trick.",
+  "requirements": ["improved-input-config"],
+  "checksum_override_version": true
+}

@@ -1,0 +1,20 @@
+trick_spear-name|Trick Spear
+trick_spear-description|Press a key while holding a spear to perform a spear trick. Options can enable object interactions and parrying.
+trick_spear.input.twirl|Twirl Spear
+trick_spear.options.tab.auto_twirl|Auto Trick
+trick_spear.options.tab.combat|Combat
+trick_spear.options.tab.debug|Debug
+trick_spear.options.auto_twirl.title|Auto trick: one spear trick when specific actions occur
+trick_spear.options.auto_twirl.enable|Master switch
+trick_spear.options.auto_twirl.belly_slide|Belly slide
+trick_spear.options.auto_twirl.turn_skid|Turn
+trick_spear.options.auto_twirl.slide_roll|Roll
+trick_spear.options.auto_twirl.backflip|Backflip
+trick_spear.options.combat.title|Combat: interactions while performing a trick
+trick_spear.options.combat.object_interact|Small object interactions
+trick_spear.options.combat.object_interact_desc|While the spear tip spins, knock down hanging items and sweep aside light objects.
+trick_spear.options.combat.parry_window|Parry
+trick_spear.options.combat.parry_window_desc|At the start of each spin, block and deflect ranged attacks.
+trick_spear.options.combat.parry_frames|Parry window (frames)
+trick_spear.options.debug.title|Debug
+trick_spear.options.debug.logging|Enable debug logging
