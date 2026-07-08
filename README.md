@@ -2,7 +2,7 @@
 
 花式舞矛，灵感来自于 Trick Saber。
 
-![preview01](static/preview01.gif]
+![preview01](static/preview01.gif)
 
 [Steam 创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=3759869025)
 
