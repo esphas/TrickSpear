@@ -2,6 +2,10 @@
 
 花式舞矛，灵感来自于 Trick Saber。
 
+![preview01](static/preview01.gif]
+
+[Steam 创意工坊](https://steamcommunity.com/sharedfiles/filedetails/?id=3759869025)
+
 ## 构建
 
 需要在 `lib/` 中补充依赖文件: 来自 [Improved Input Config](https://github.com/zombieseatflesh7/improved-input-config) 的 `ImprovedInput.dll` 和 `ImprovedInput.xml`。
