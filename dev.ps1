@@ -1,12 +1,15 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Link or unlink a junction from this repo root to Rain World's mods folder.
+  Link or unlink a junction from dist/ to Rain World's mods folder.
 
 .DESCRIPTION
   Links:
     <Rain World>/RainWorld_Data/StreamingAssets/mods/<mod id>/
-  to this repository root.
+  to:
+    dist/<mod id>/
+
+  Run .\build.ps1 first to populate dist/.
 
 .PARAMETER Action
   link   - Create the junction (default).
@@ -95,7 +98,7 @@ Pass -RWDir, or set RWDir in GamePaths.local.props.
 
 function Test-Junction([string] $Path) {
     if (-not (Test-Path -LiteralPath $Path)) {
-        return $false
+        return false
     }
 
     return ([IO.FileAttributes]::ReparsePoint -band (Get-Item -LiteralPath $Path).Attributes) -ne 0
@@ -109,12 +112,12 @@ function Get-JunctionTarget([string] $Path) {
     return (Get-Item -LiteralPath $Path).Target
 }
 
-function Show-Status([string] $LinkPath, [string] $RepoRoot) {
+function Show-Status([string] $LinkPath, [string] $StageDir) {
     Write-Step 'Junction status'
 
     Write-Host "  Game root     : $script:ResolvedRWDir"
     Write-Host "  Mod link path : $LinkPath"
-    Write-Host "  Repo root     : $RepoRoot"
+    Write-Host "  Stage dir     : $StageDir"
 
     if (-not (Test-Path -LiteralPath $LinkPath)) {
         Write-Host '  State         : not linked' -ForegroundColor DarkYellow
@@ -123,15 +126,15 @@ function Show-Status([string] $LinkPath, [string] $RepoRoot) {
 
     if (Test-Junction $LinkPath) {
         $target = (Resolve-Path -LiteralPath (Get-JunctionTarget $LinkPath)).Path
-        $matchesRepo = $target -eq $RepoRoot
+        $matchesStage = $target -eq $StageDir
 
         Write-Host "  State         : junction"
         Write-Host "  Points to     : $target"
 
-        if ($matchesRepo) {
+        if ($matchesStage) {
             Write-Ok '  Match         : yes'
         } else {
-            Write-Warn '  Match         : no (junction target differs from this repo)'
+            Write-Warn '  Match         : no (junction target differs from dist/)'
         }
 
         return
@@ -153,6 +156,31 @@ function Remove-Link([string] $LinkPath) {
     }
 }
 
+function Ensure-StageDir([string] $StageDir) {
+    if (-not (Test-Path -LiteralPath $StageDir)) {
+        throw @"
+Staged mod folder not found:
+  $StageDir
+Run .\build.ps1 first.
+"@
+    }
+
+    $required = @(
+        (Join-Path $StageDir 'modinfo.json'),
+        (Join-Path $StageDir 'plugins\TrickSpear.dll')
+    )
+
+    foreach ($path in $required) {
+        if (-not (Test-Path -LiteralPath $path)) {
+            throw @"
+Staged mod folder is incomplete:
+  missing $path
+Run .\build.ps1 first.
+"@
+        }
+    }
+}
+
 $modInfo = Read-JsonFile $ModInfoFile
 $modIdFromFile = (Get-Content -LiteralPath $IdFile -Raw -Encoding UTF8).Trim()
 
@@ -167,7 +195,11 @@ if ($modInfo.id -ne $modIdFromFile) {
 $script:ResolvedRWDir = Resolve-RWDir
 $modsRoot = Join-Path $script:ResolvedRWDir 'RainWorld_Data\StreamingAssets\mods'
 $linkPath = Join-Path $modsRoot $modIdFromFile
-$repoRoot = (Resolve-Path -LiteralPath $Root).Path
+$stageDirPath = Join-Path (Join-Path $Root 'dist') $modIdFromFile
+$stageDir = $null
+if (Test-Path -LiteralPath $stageDirPath) {
+    $stageDir = (Resolve-Path -LiteralPath $stageDirPath).Path
+}
 
 if (-not (Test-Path -LiteralPath $modsRoot)) {
     throw "Game mods directory not found: $modsRoot`nCheck -RWDir / GamePaths.local.props."
@@ -175,18 +207,25 @@ if (-not (Test-Path -LiteralPath $modsRoot)) {
 
 switch ($Action) {
     'status' {
-        Show-Status $linkPath $repoRoot
+        if (-not $stageDir) {
+            $stageDir = $stageDirPath
+            Write-Warn "Stage dir not built yet: $stageDir"
+        }
+
+        Show-Status $linkPath $stageDir
         break
     }
 
     'link' {
         Write-Step "Linking $modIdFromFile"
+        Ensure-StageDir $stageDirPath
+        $stageDir = (Resolve-Path -LiteralPath $stageDirPath).Path
 
         if (Test-Path -LiteralPath $linkPath) {
             if (Test-Junction $linkPath) {
                 $currentTarget = (Resolve-Path -LiteralPath (Get-JunctionTarget $linkPath)).Path
-                if ($currentTarget -eq $repoRoot) {
-                    Write-Ok "Already linked: $linkPath -> $repoRoot"
+                if ($currentTarget -eq $stageDir) {
+                    Write-Ok "Already linked: $linkPath -> $stageDir"
                     break
                 }
 
@@ -217,13 +256,8 @@ Rename/remove it manually, or use -Force to delete that folder and create a junc
             }
         }
 
-        Install-Link $linkPath $repoRoot
-        Write-Ok "Linked: $linkPath -> $repoRoot"
-        Write-Host ''
-        Write-Host 'Next steps:'
-        Write-Host '  1. Build: .\build.ps1'
-        Write-Host '  2. Enable trick_spear in Remix'
-        Write-Host '  3. Unlink when done: .\dev.ps1 unlink'
+        Install-Link $linkPath $stageDir
+        Write-Ok "Linked: $linkPath -> $stageDir"
         break
     }
 
@@ -245,7 +279,7 @@ Refusing to delete a real mod folder. Remove it manually if that is intended.
 
         $target = Get-JunctionTarget $linkPath
         Remove-Link $linkPath
-        Write-Ok "Removed junction: $linkPath (repo kept at $target)"
+        Write-Ok "Removed junction: $linkPath (staged mod kept at $target)"
         break
     }
 }
