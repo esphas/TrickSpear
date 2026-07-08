@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using BepInEx;
@@ -6,8 +7,8 @@ using UnityEngine;
 
 [assembly: AssemblyTitle("TrickSpear")]
 [assembly: AssemblyDescription("Spear twirl atmospheric mod for Rain World")]
-[assembly: AssemblyVersion("0.1.0")]
-[assembly: AssemblyFileVersion("0.1.0")]
+[assembly: AssemblyVersion("0.1.1")]
+[assembly: AssemblyFileVersion("0.1.1")]
 [assembly: ComVisible(false)]
 
 namespace TrickSpear;
@@ -17,7 +18,7 @@ file static class PluginInfo
     internal const string Guid = "trick_spear";
     internal const string ModId = "trick_spear";
     internal const string Name = "Trick Spear";
-    internal const string Version = "0.1.0";
+    internal const string Version = "0.1.1";
 }
 
 [BepInPlugin(PluginInfo.Guid, PluginInfo.Name, PluginInfo.Version)]
@@ -73,6 +74,11 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
         catch (System.Exception ex)
         {
             Logger.LogError($"TrickSpear options init failed: {ex}");
+        }
+
+        if (ModManager.ActiveMods.Any(mod => mod.id == "henpemaz_rainmeadow"))
+        {
+            TwirlMeadowBootstrap.TryInstall(Logger);
         }
     }
 

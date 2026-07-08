@@ -5,12 +5,15 @@ namespace TrickSpear;
 
 internal static class SpinObjectInteract
 {
-    private const float RockImpulse = 9f;
     private const float MaxSweepMass = 0.22f;
-    private const float MaxSweepSpeed = 18f;
 
     internal static void Update(Player player, PlayerTwirlState.Data state)
     {
+        if (!TwirlNetworkGuard.AllowCombatPhysics)
+        {
+            return;
+        }
+
         if (!TwirlCombatConfig.SpinSmallObjectInteract || !TwirlCombatWindow.IsInSpinSegment(state))
         {
             return;
@@ -21,7 +24,7 @@ internal static class SpinObjectInteract
             return;
         }
 
-        var spear = GetHeldSpear(player);
+        var spear = SpearChecks.GetHeldSpear(player);
         if (spear == null)
         {
             return;
@@ -57,12 +60,12 @@ internal static class SpinObjectInteract
             return;
         }
 
-        if (TryDetachStalk(obj))
+        if (TryDetachStalk(obj, spear))
         {
             return;
         }
 
-        TrySweep(obj, tip, dir);
+        TrySweep(obj, spear, dir);
     }
 
     private static bool IsExcluded(PhysicalObject obj, Spear spear)
@@ -97,31 +100,41 @@ internal static class SpinObjectInteract
             return false;
         }
 
-        if (obj is DangleFruit or NeedleEgg or Mushroom or BubbleGrass or KarmaFlower
-            or FlyLure or FirecrackerPlant or SlimeMold or JellyFish)
+        if (IsHangingWeaponTarget(obj))
         {
-            if (!IsStillAttached(obj))
-            {
-                return false;
-            }
-
-            obj.HitByWeapon(spear);
-            return true;
+            return TryAttachedWeaponHit(obj, spear);
         }
 
         if (obj is PlayerCarryableItem && IsHangingConsumableType(obj))
         {
-            if (!IsStillAttached(obj))
-            {
-                return false;
-            }
-
-            obj.HitByWeapon(spear);
-            return true;
+            return TryAttachedWeaponHit(obj, spear);
         }
 
         return false;
     }
+
+    private static bool TryAttachedWeaponHit(PhysicalObject obj, Spear spear)
+    {
+        if (!IsStillAttached(obj))
+        {
+            return false;
+        }
+
+        return TwirlMeadowCombat.ApplyObjectInteraction(
+            obj,
+            spear,
+            SpinInteractKind.HitByWeapon,
+            Vector2.zero,
+            () =>
+            {
+                SpinObjectInteractLocal.HitByWeapon(obj, spear);
+                return true;
+            });
+    }
+
+    private static bool IsHangingWeaponTarget(PhysicalObject obj) =>
+        obj is DangleFruit or NeedleEgg or Mushroom or BubbleGrass or KarmaFlower
+            or FlyLure or FirecrackerPlant or SlimeMold or JellyFish;
 
     private static bool IsHangingConsumableType(PhysicalObject obj)
     {
@@ -129,34 +142,35 @@ internal static class SpinObjectInteract
         return name is "GlowWeed" or "GooieDuck";
     }
 
-    private static bool TryDetachStalk(PhysicalObject obj)
+    private static bool TryDetachStalk(PhysicalObject obj, Spear spear) =>
+        TwirlMeadowCombat.ApplyObjectInteraction(
+            obj,
+            spear,
+            SpinInteractKind.DetatchStalk,
+            Vector2.zero,
+            () => CanDetachStalk(obj) && SpinObjectInteractLocal.TryDetatchStalk(obj));
+
+    private static bool CanDetachStalk(PhysicalObject obj)
     {
         if (obj is WaterNut nut && nut.stalk != null)
         {
-            nut.DetatchStalk();
             return true;
         }
 
         if (obj is FlareBomb flare && flare.stalk != null)
         {
-            flare.DetatchStalk();
             return true;
         }
 
-        if (obj is IHaveAStalk stalked && IsStillAttached(obj))
+        if (obj is IHaveAStalk && IsStillAttached(obj))
         {
-            var name = obj.GetType().Name;
-            if (name is "LillyPuck" or "DandelionPeach")
-            {
-                stalked.DetatchStalk();
-                return true;
-            }
+            return obj.GetType().Name is "LillyPuck" or "DandelionPeach";
         }
 
         return false;
     }
 
-    private static bool TrySweep(PhysicalObject obj, Vector2 tip, Vector2 dir)
+    private static bool TrySweep(PhysicalObject obj, Spear spear, Vector2 dir)
     {
         if (!CanSweep(obj))
         {
@@ -164,16 +178,19 @@ internal static class SpinObjectInteract
         }
 
         var impulseScale = obj is Rock ? 1f : 0.78f;
-        var push = dir * (RockImpulse * impulseScale) + new Vector2(0f, 3f * impulseScale);
-        obj.firstChunk.vel += push;
-        obj.firstChunk.vel = Vector2.ClampMagnitude(obj.firstChunk.vel, MaxSweepSpeed);
+        var push = dir * (SpinObjectInteractLocal.RockImpulse * impulseScale)
+            + new Vector2(0f, 3f * impulseScale);
 
-        if (obj is PuffBall or GraffitiBomb)
-        {
-            obj.firstChunk.vel *= 0.85f;
-        }
-
-        return true;
+        return TwirlMeadowCombat.ApplyObjectInteraction(
+            obj,
+            spear,
+            SpinInteractKind.Sweep,
+            push,
+            () =>
+            {
+                SpinObjectInteractLocal.ApplySweepImpulse(obj, push);
+                return true;
+            });
     }
 
     private static bool CanSweep(PhysicalObject obj)
@@ -254,23 +271,5 @@ internal static class SpinObjectInteract
         }
 
         return value is int i ? i : null;
-    }
-
-    private static Spear? GetHeldSpear(Player player)
-    {
-        if (player.grasps == null)
-        {
-            return null;
-        }
-
-        for (var i = 0; i < player.grasps.Length; i++)
-        {
-            if (player.grasps[i]?.grabbed is Spear spear)
-            {
-                return spear;
-            }
-        }
-
-        return null;
     }
 }

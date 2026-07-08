@@ -18,3 +18,5 @@ trick_spear.options.combat.parry_window_desc|At the start of each spin, block an
 trick_spear.options.combat.parry_frames|Parry window (frames)
 trick_spear.options.debug.title|Debug
 trick_spear.options.debug.logging|Enable debug logging
+trick_spear.options.debug.online_combat|[Experimental] Online combat options
+trick_spear.options.debug.online_combat_desc|When enabled, combat options apply during Rain Meadow sessions. All players should use the same settings.

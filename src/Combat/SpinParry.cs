@@ -9,9 +9,15 @@ internal static class SpinParry
     private const float TongueScanReach = 38f;
     private const float CreatureScanReach = 40f;
     private const float DeflectSpeed = 25f;
+    private const float DeflectLift = 6f;
 
     internal static void Update(Player player, PlayerTwirlState.Data state)
     {
+        if (!TwirlNetworkGuard.AllowCombatPhysics)
+        {
+            return;
+        }
+
         if (!TwirlCombatConfig.SpinParryWindow || !TwirlCombatWindow.IsInParryWindow(state))
         {
             return;
@@ -34,7 +40,9 @@ internal static class SpinParry
         Creature.DamageType type,
         float damage)
     {
-        if (!TwirlCombatConfig.SpinParryWindow || !TwirlCombatWindow.IsInParryWindow(state))
+        if (!TwirlNetworkGuard.AllowCombatPhysics
+            || !TwirlCombatConfig.SpinParryWindow
+            || !TwirlCombatWindow.IsInParryWindow(state))
         {
             return false;
         }
@@ -44,9 +52,24 @@ internal static class SpinParry
             return false;
         }
 
-        if (TwirlSpearPose.TryGet(player, state, out var tip, out _))
+        if (!TwirlSpearPose.TryGet(player, state, out var tip, out var dir))
         {
-            PlayParryFeedback(player.room, tip);
+            return true;
+        }
+
+        if (source?.owner is Weapon weapon
+            && weapon.mode == Weapon.Mode.Thrown
+            && weapon.thrownBy != player)
+        {
+            TwirlMeadowCombat.DeflectThrownWeapon(
+                weapon,
+                ComputeThrownDeflectVelocity(dir),
+                player,
+                player.room);
+        }
+        else
+        {
+            TwirlCombatFeedback.PlayParry(player.room, tip);
         }
 
         return true;
@@ -94,6 +117,9 @@ internal static class SpinParry
         return false;
     }
 
+    private static Vector2 ComputeThrownDeflectVelocity(Vector2 dir) =>
+        dir * DeflectSpeed + new Vector2(0f, DeflectLift);
+
     private static void DeflectThrownWeapons(Player player, Vector2 tip, Vector2 dir)
     {
         var room = player.room;
@@ -101,6 +127,8 @@ internal static class SpinParry
         {
             return;
         }
+
+        var deflectVel = ComputeThrownDeflectVelocity(dir);
 
         foreach (var objList in room.physicalObjects)
         {
@@ -113,21 +141,12 @@ internal static class SpinParry
                     continue;
                 }
 
-                if (Vector2.Distance(tip, weapon.firstChunk.pos) > WeaponScanReach)
+                if (!IsWithinReach(tip, weapon.firstChunk.pos, WeaponScanReach, dir, weapon.firstChunk.pos - tip, 0.2f))
                 {
                     continue;
                 }
 
-                var toWeapon = weapon.firstChunk.pos - tip;
-                if (toWeapon.sqrMagnitude > 0.01f && Vector2.Dot(toWeapon.normalized, dir) < 0.2f)
-                {
-                    continue;
-                }
-
-                weapon.ChangeMode(Weapon.Mode.Free);
-                weapon.firstChunk.vel = dir * DeflectSpeed + new Vector2(0f, 6f);
-                weapon.SetRandomSpin();
-                PlayParryFeedback(room, weapon.firstChunk.pos);
+                TwirlMeadowCombat.DeflectThrownWeapon(weapon, deflectVel, player, room);
             }
         }
     }
@@ -156,8 +175,8 @@ internal static class SpinParry
             if (lizard.tongue.attached?.owner == player &&
                 lizard.tongue.state == LizardTongue.State.Attatched)
             {
-                lizard.tongue.Retract();
-                PlayParryFeedback(room, tip);
+                TwirlMeadowCombat.RetractLizardTongue(lizard);
+                TwirlCombatFeedback.PlayParry(room, tip);
                 continue;
             }
 
@@ -166,19 +185,13 @@ internal static class SpinParry
                 continue;
             }
 
-            if (Vector2.Distance(tip, lizard.tongue.pos) > TongueScanReach)
+            if (!IsWithinReach(tip, lizard.tongue.pos, TongueScanReach, dir, lizard.tongue.pos - tip, 0.15f))
             {
                 continue;
             }
 
-            var toTongue = lizard.tongue.pos - tip;
-            if (toTongue.sqrMagnitude > 0.01f && Vector2.Dot(toTongue.normalized, dir) < 0.15f)
-            {
-                continue;
-            }
-
-            lizard.tongue.Retract();
-            PlayParryFeedback(room, lizard.tongue.pos);
+            TwirlMeadowCombat.RetractLizardTongue(lizard);
+            TwirlCombatFeedback.PlayParry(room, lizard.tongue.pos);
         }
     }
 
@@ -203,45 +216,41 @@ internal static class SpinParry
             }
 
             var chunk = crit.mainBodyChunk;
-            if (Vector2.Distance(tip, chunk.pos) > CreatureScanReach)
-            {
-                continue;
-            }
-
             var away = chunk.pos - tip;
             if (away.sqrMagnitude < 0.01f)
             {
                 away = -dir;
             }
 
-            away.Normalize();
-            if (Vector2.Dot(away, dir) < 0.25f)
+            if (!IsWithinReach(tip, chunk.pos, CreatureScanReach, dir, away, 0.25f))
             {
                 continue;
             }
 
-            chunk.vel += away * 8f + dir * 4f;
-            crit.Stun(40);
-            PlayParryFeedback(room, chunk.pos);
+            away.Normalize();
+            TwirlMeadowCombat.RepelCreature(crit, away * 8f + dir * 4f, 40);
+            TwirlCombatFeedback.PlayParry(room, chunk.pos);
         }
     }
 
-    private static void PlayParryFeedback(Room? room, Vector2 pos)
+    private static bool IsWithinReach(
+        Vector2 tip,
+        Vector2 targetPos,
+        float maxDistance,
+        Vector2 dir,
+        Vector2 toTarget,
+        float minDot)
     {
-        if (room == null)
+        if (Vector2.Distance(tip, targetPos) > maxDistance)
         {
-            return;
+            return false;
         }
 
-        room.PlaySound(SoundID.Spear_Bounce_Off_Creauture_Shell, pos);
-        room.AddObject(new ExplosionSpikes(
-            room,
-            pos,
-            8,
-            30f,
-            7f,
-            7f,
-            60f,
-            new Color(1f, 1f, 1f, 0.8f)));
+        if (toTarget.sqrMagnitude <= 0.01f)
+        {
+            return true;
+        }
+
+        return Vector2.Dot(toTarget.normalized, dir) >= minDot;
     }
 }

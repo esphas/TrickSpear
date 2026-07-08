@@ -24,4 +24,6 @@ internal static class LocKeys
 
     internal const string OptionsDebugTitle = "trick_spear.options.debug.title";
     internal const string OptionsDebugLogging = "trick_spear.options.debug.logging";
+    internal const string OptionsDebugOnlineCombat = "trick_spear.options.debug.online_combat";
+    internal const string OptionsDebugOnlineCombatDesc = "trick_spear.options.debug.online_combat_desc";
 }

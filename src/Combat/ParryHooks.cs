@@ -18,7 +18,9 @@ internal static class ParryHooks
         float damage,
         float stunBonus)
     {
-        if (self is Player player && !player.isNPC)
+        if (self is Player player
+            && !player.isNPC
+            && TwirlNetworkGuard.AllowCombatForPlayer(player))
         {
             var state = PlayerTwirlState.Get(player);
             if (SpinParry.TryBlockViolence(player, state, source, type, damage))

@@ -23,6 +23,24 @@ internal static class SpearChecks
 
     internal static bool HasSpearInHand(Player player) => GetSpearHandMask(player) != 0;
 
+    internal static Spear? GetHeldSpear(Player player)
+    {
+        if (player.grasps == null)
+        {
+            return null;
+        }
+
+        for (var i = 0; i < player.grasps.Length; i++)
+        {
+            if (player.grasps[i]?.grabbed is Spear spear)
+            {
+                return spear;
+            }
+        }
+
+        return null;
+    }
+
     internal static bool IsHeldSpear(Spear spear, Player player)
     {
         if (player.grasps == null)

@@ -44,6 +44,10 @@
       <HintPath>lib\ImprovedInput.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="Rain Meadow">
+      <HintPath>lib\Rain Meadow.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="UnityEngine">
       <HintPath>$(ManagedDir)\UnityEngine.dll</HintPath>
       <Private>false</Private>

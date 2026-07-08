@@ -11,7 +11,6 @@ internal static class PlayerHooks
             return;
         }
 
-        var snap = TwirlInput.GetSnapshot(self);
         var state = PlayerTwirlState.Get(self);
 
         if (!GameplayGuards.IsInGameplaySession(self))
@@ -24,6 +23,14 @@ internal static class PlayerHooks
             return;
         }
 
+        TwirlNetworkGuard.EnsureEntityData(self);
+
+        if (TwirlNetworkGuard.TryHandleRemoteUpdate(self))
+        {
+            return;
+        }
+
+        var snap = TwirlInput.GetSnapshot(self);
         state.InHoldSession = snap.SessionActive;
 
         if (state.IsTwirling)

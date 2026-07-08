@@ -16,6 +16,7 @@ public sealed class TrickSpearOptions : OptionInterface
     public readonly Configurable<bool> SpinParryWindow = null!;
     public readonly Configurable<int> ParryWindowFrames = null!;
     public readonly Configurable<bool> DebugLogging = null!;
+    public readonly Configurable<bool> OnlineCombatExperimental = null!;
 
     public TrickSpearOptions()
     {
@@ -30,6 +31,7 @@ public sealed class TrickSpearOptions : OptionInterface
         SpinParryWindow = config.Bind("SpinParryWindow", false);
         ParryWindowFrames = config.Bind("ParryWindowFrames", 5, new ConfigAcceptableRange<int>(1, 30));
         DebugLogging = config.Bind("DebugLogging", false);
+        OnlineCombatExperimental = config.Bind("OnlineCombatExperimental", false);
 
         OnConfigChanged += ApplyToRuntime;
         OnActivate += ApplyToRuntime;
@@ -57,6 +59,7 @@ public sealed class TrickSpearOptions : OptionInterface
         TwirlCombatConfig.SpinSmallObjectInteract = SpinSmallObjectInteract.Value;
         TwirlCombatConfig.SpinParryWindow = SpinParryWindow.Value;
         TwirlCombatConfig.ParryWindowFrames = ParryWindowFrames.Value;
+        TwirlCombatConfig.OnlineCombatExperimental = OnlineCombatExperimental.Value;
         TwirlDebug.Enabled = DebugLogging.Value;
     }
 
@@ -100,7 +103,10 @@ public sealed class TrickSpearOptions : OptionInterface
         tab.AddItems(
             new OpLabel(40f, 530f, L(LocKeys.OptionsDebugTitle), bigText: true),
             new OpCheckBox(DebugLogging, new Vector2(40f, 460f)),
-            new OpLabel(75f, 460f, L(LocKeys.OptionsDebugLogging)));
+            new OpLabel(75f, 460f, L(LocKeys.OptionsDebugLogging)),
+            new OpCheckBox(OnlineCombatExperimental, new Vector2(40f, 410f)),
+            new OpLabel(75f, 410f, L(LocKeys.OptionsDebugOnlineCombat)),
+            new OpLabel(55f, 370f, L(LocKeys.OptionsDebugOnlineCombatDesc)));
         return tab;
     }
 
