@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -6,6 +7,8 @@ namespace TrickSpear;
 internal static class SpinObjectInteract
 {
     private const float MaxSweepMass = 0.22f;
+    private const BindingFlags InstanceFieldFlags =
+        BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
     internal static void Update(Player player, PlayerTwirlState.Data state)
     {
@@ -30,42 +33,109 @@ internal static class SpinObjectInteract
             return;
         }
 
-        foreach (var objList in player.room.physicalObjects)
+        state.SpinInteractedObjects ??= new HashSet<PhysicalObject>();
+        var candidates = state.SpinInteractCandidates;
+        candidates.Clear();
+
+        CollectCandidates(player.room, state, spear, tip, dir, candidates);
+
+        for (var i = 0; i < candidates.Count; i++)
         {
-            foreach (var obj in objList)
+            ApplyInteraction(state, candidates[i], spear, dir);
+        }
+
+        state.SpinLastBladeTip = tip;
+        state.SpinLastBladeDir = dir;
+        state.SpinHasLastBladeSample = true;
+    }
+
+    /// <summary>
+    /// Scan all collision layers, then apply. Two phases avoid mutating room lists during iteration.
+    /// </summary>
+    private static void CollectCandidates(
+        Room room,
+        PlayerTwirlState.Data state,
+        Spear spear,
+        Vector2 tip,
+        Vector2 dir,
+        List<PhysicalObject> candidates)
+    {
+        var interacted = state.SpinInteractedObjects!;
+
+        foreach (var objList in room.physicalObjects)
+        {
+            for (var i = 0; i < objList.Count; i++)
             {
-                TryInteract(obj, spear, tip, dir);
+                var obj = objList[i];
+                if (IsExcluded(obj, spear) || interacted.Contains(obj) || !IsPotentialTarget(obj))
+                {
+                    continue;
+                }
+
+                if (!TwirlSpearMetrics.IsWithinBladeSweepVolume(
+                        obj.firstChunk.pos,
+                        obj.firstChunk.rad,
+                        tip,
+                        dir,
+                        state.SpinHasLastBladeSample,
+                        state.SpinLastBladeTip,
+                        state.SpinLastBladeDir))
+                {
+                    continue;
+                }
+
+                candidates.Add(obj);
             }
         }
     }
 
-    private static void TryInteract(PhysicalObject obj, Spear spear, Vector2 tip, Vector2 dir)
+    private static void ApplyInteraction(
+        PlayerTwirlState.Data state,
+        PhysicalObject obj,
+        Spear spear,
+        Vector2 dir)
     {
-        if (IsExcluded(obj, spear))
+        if (TryWeaponInteract(obj, spear)
+            || TryDetachStalk(obj, spear)
+            || TrySweep(obj, spear, dir))
         {
-            return;
+            state.SpinInteractedObjects!.Add(obj);
+        }
+    }
+
+    private static bool IsPotentialTarget(PhysicalObject obj)
+    {
+        if (obj is Rock or EggBugEgg or PuffBall or GraffitiBomb)
+        {
+            return true;
         }
 
-        if (!TwirlSpearMetrics.IsWithinBladeSweep(
-                obj.firstChunk.pos,
-                obj.firstChunk.rad,
-                tip,
-                dir))
+        if (obj is WaterNut or FlareBomb)
         {
-            return;
+            return true;
         }
 
-        if (TryWeaponInteract(obj, spear))
+        if (IsHangingWeaponTarget(obj))
         {
-            return;
+            return true;
         }
 
-        if (TryDetachStalk(obj, spear))
+        if (obj is PlayerCarryableItem && IsHangingConsumableType(obj))
         {
-            return;
+            return true;
         }
 
-        TrySweep(obj, spear, dir);
+        if (obj is Weapon weapon && weapon.mode != Weapon.Mode.Thrown && obj.TotalMass <= MaxSweepMass)
+        {
+            return weapon.GetType().Name != "ExplosiveSpear";
+        }
+
+        if (obj is PlayerCarryableItem && obj.TotalMass <= MaxSweepMass && obj is not DataPearl)
+        {
+            return true;
+        }
+
+        return false;
     }
 
     private static bool IsExcluded(PhysicalObject obj, Spear spear)
@@ -100,27 +170,18 @@ internal static class SpinObjectInteract
             return false;
         }
 
-        if (IsHangingWeaponTarget(obj))
+        if (!IsHangingWeaponTarget(obj)
+            && !(obj is PlayerCarryableItem && IsHangingConsumableType(obj)))
         {
-            return TryAttachedWeaponHit(obj, spear);
+            return false;
         }
 
-        if (obj is PlayerCarryableItem && IsHangingConsumableType(obj))
-        {
-            return TryAttachedWeaponHit(obj, spear);
-        }
-
-        return false;
-    }
-
-    private static bool TryAttachedWeaponHit(PhysicalObject obj, Spear spear)
-    {
         if (!IsStillAttached(obj))
         {
             return false;
         }
 
-        return TwirlMeadowCombat.ApplyObjectInteraction(
+        return DispatchInteraction(
             obj,
             spear,
             SpinInteractKind.HitByWeapon,
@@ -132,6 +193,59 @@ internal static class SpinObjectInteract
             });
     }
 
+    private static bool TryDetachStalk(PhysicalObject obj, Spear spear)
+    {
+        if (!CanDetachStalk(obj))
+        {
+            return false;
+        }
+
+        return DispatchInteraction(
+            obj,
+            spear,
+            SpinInteractKind.DetatchStalk,
+            Vector2.zero,
+            () => SpinObjectInteractLocal.TryDetatchStalk(obj));
+    }
+
+    private static bool TrySweep(PhysicalObject obj, Spear spear, Vector2 dir)
+    {
+        if (!CanSweep(obj))
+        {
+            return false;
+        }
+
+        var impulseScale = obj is Rock ? 1f : 0.78f;
+        var push = dir * (SpinObjectInteractLocal.RockImpulse * impulseScale)
+            + new Vector2(0f, 3f * impulseScale);
+
+        return DispatchInteraction(
+            obj,
+            spear,
+            SpinInteractKind.Sweep,
+            push,
+            () =>
+            {
+                SpinObjectInteractLocal.ApplySweepImpulse(obj, push);
+                return true;
+            });
+    }
+
+    private static bool DispatchInteraction(
+        PhysicalObject obj,
+        Spear spear,
+        SpinInteractKind kind,
+        Vector2 impulse,
+        System.Func<bool> localApply)
+    {
+        if (!TwirlMeadowCombat.UseOnlineCombatSync)
+        {
+            return localApply();
+        }
+
+        return TwirlMeadowCombat.ApplyObjectInteraction(obj, spear, kind, impulse, localApply);
+    }
+
     private static bool IsHangingWeaponTarget(PhysicalObject obj) =>
         obj is DangleFruit or NeedleEgg or Mushroom or BubbleGrass or KarmaFlower
             or FlyLure or FirecrackerPlant or SlimeMold or JellyFish;
@@ -141,14 +255,6 @@ internal static class SpinObjectInteract
         var name = obj.GetType().Name;
         return name is "GlowWeed" or "GooieDuck";
     }
-
-    private static bool TryDetachStalk(PhysicalObject obj, Spear spear) =>
-        TwirlMeadowCombat.ApplyObjectInteraction(
-            obj,
-            spear,
-            SpinInteractKind.DetatchStalk,
-            Vector2.zero,
-            () => CanDetachStalk(obj) && SpinObjectInteractLocal.TryDetatchStalk(obj));
 
     private static bool CanDetachStalk(PhysicalObject obj)
     {
@@ -170,31 +276,13 @@ internal static class SpinObjectInteract
         return false;
     }
 
-    private static bool TrySweep(PhysicalObject obj, Spear spear, Vector2 dir)
+    private static bool CanSweep(PhysicalObject obj)
     {
-        if (!CanSweep(obj))
+        if (obj.grabbedBy.Count > 0)
         {
             return false;
         }
 
-        var impulseScale = obj is Rock ? 1f : 0.78f;
-        var push = dir * (SpinObjectInteractLocal.RockImpulse * impulseScale)
-            + new Vector2(0f, 3f * impulseScale);
-
-        return TwirlMeadowCombat.ApplyObjectInteraction(
-            obj,
-            spear,
-            SpinInteractKind.Sweep,
-            push,
-            () =>
-            {
-                SpinObjectInteractLocal.ApplySweepImpulse(obj, push);
-                return true;
-            });
-    }
-
-    private static bool CanSweep(PhysicalObject obj)
-    {
         if (obj is Rock or EggBugEgg or PuffBall or GraffitiBomb)
         {
             return true;
@@ -225,34 +313,84 @@ internal static class SpinObjectInteract
 
     private static bool IsStillAttached(PhysicalObject obj)
     {
-        if (TryGetFieldValue(obj, "growPos", out var growPos) && growPos is Vector2?)
+        if (obj is DangleFruit fruit)
         {
-            return ((Vector2?)growPos).HasValue;
+            return fruit.stalk != null && fruit.stalk.releaseCounter == 0;
         }
 
-        if (TryGetFieldValue(obj, "myStalk", out var myStalk) && myStalk != null)
+        if (obj is NeedleEgg egg)
         {
-            return TryGetIntField(myStalk, "releaseCounter") is 0;
+            return egg.stalk != null && egg.stalk.releaseCounter == 0;
+        }
+
+        if (obj is BubbleGrass or FlyLure or FirecrackerPlant)
+        {
+            return TryReadGrowPos(obj, out var hasGrowPos) && hasGrowPos;
+        }
+
+        if (obj is KarmaFlower karmaFlower)
+        {
+            return karmaFlower.growPos.HasValue;
+        }
+
+        if (obj is Mushroom mushroom)
+        {
+            return mushroom.growPos.HasValue;
+        }
+
+        if (IsHangingConsumableType(obj))
+        {
+            return IsHangingConsumableAttached(obj);
+        }
+
+        if (obj is SlimeMold or JellyFish)
+        {
+            return obj.grabbedBy.Count == 0 && obj.firstChunk.ContactPoint != default;
+        }
+
+        return false;
+    }
+
+    private static bool IsHangingConsumableAttached(PhysicalObject obj)
+    {
+        if (obj.abstractPhysicalObject is AbstractConsumable consumable && consumable.isConsumed)
+        {
+            return false;
         }
 
         if (TryGetFieldValue(obj, "stalk", out var stalk) && stalk != null)
         {
-            if (obj is WaterNut or FlareBomb)
-            {
-                return true;
-            }
-
-            var release = TryGetIntField(stalk, "releaseCounter");
-            return release is null or 0;
+            return TryGetIntField(stalk, "releaseCounter") is null or 0;
         }
 
-        return obj is FlyLure or FirecrackerPlant or SlimeMold or JellyFish
-            || obj.GetType().Name == "GooieDuck";
+        if (TryGetFieldValue(obj, "myStalk", out var myStalk) && myStalk != null)
+        {
+            return TryGetIntField(myStalk, "releaseCounter") is null or 0;
+        }
+
+        return false;
+    }
+
+    private static bool TryReadGrowPos(object target, out bool hasGrowPos)
+    {
+        hasGrowPos = false;
+        if (!TryGetFieldValue(target, "growPos", out var raw) || raw == null)
+        {
+            return false;
+        }
+
+        if (raw is Vector2)
+        {
+            hasGrowPos = true;
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryGetFieldValue(object target, string fieldName, out object? value)
     {
-        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.Public);
+        var field = target.GetType().GetField(fieldName, InstanceFieldFlags);
         if (field == null)
         {
             value = null;

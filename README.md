@@ -25,11 +25,22 @@
  - 玩家不必都安装本模组，但未安装模组的人无法看到已安装模组的人施展花枪，矛的位置也有可能略显怪异
  - 联机模式下，无论配置如何，花枪的战斗选项功能都会被**禁用**
 
+对于联机的测试仍不充分，欢迎积极反馈。
+
 ## 开发构建
 
 需要在 `lib/` 中补充依赖文件: 
  - 来自 [Improved Input Config](https://github.com/zombieseatflesh7/improved-input-config) 的 `ImprovedInput.dll` 和 `ImprovedInput.xml`
  - 来自 [Rain Meadow](https://github.com/henpemaz/Rain-Meadow) 的 `Rain Meadow.dll`
+
+在 `GamePaths.local.props` 中配置 `RWDir` 指向 Rain World 安装目录。
+
+```powershell
+.\build.ps1          # 编译并将模组打包到 dist/trick_spear/
+.\dev.ps1 link       # 把 dist/trick_spear/ 链接到游戏本地 mod 目录下
+# 开发期间修改代码后重新运行 build.ps1
+.\dev.ps1 unlink     # 开发结束后解除链接
+```
 
 ### 代码结构
 

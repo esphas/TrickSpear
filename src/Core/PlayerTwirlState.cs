@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 
@@ -52,6 +53,14 @@ internal static class PlayerTwirlState
         public bool CrawlAnchorLogged;
 
         public float SpinPreviousPhaseRad;
+
+        public Vector2 SpinLastBladeTip;
+        public Vector2 SpinLastBladeDir;
+        public bool SpinHasLastBladeSample;
+
+        public HashSet<PhysicalObject>? SpinInteractedObjects;
+
+        public readonly List<PhysicalObject> SpinInteractCandidates = new();
 
         public TwirlRotationTrail? SpinTrail;
 

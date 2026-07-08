@@ -21,7 +21,7 @@ internal static class TwirlMeadowIntegration
             UpdateRemoteMirror,
             EnsureEntityData);
 
-        TwirlMeadowCombat.BindRpcMethods(logger);
+        TwirlMeadowBindings.Install(logger);
 
         var target = typeof(OnlineGameMode).GetMethod(
             nameof(OnlineGameMode.NewEntity),

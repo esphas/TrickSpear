@@ -1,4 +1,5 @@
 using RWCustom;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TrickSpear;
@@ -102,6 +103,7 @@ internal static class TwirlSession
         state.SegmentTimer = 0;
         state.SpinElapsed = 0;
         state.CurrentSegment = PlayerTwirlState.Segment.Raise;
+        state.SpinInteractedObjects?.Clear();
 
         if (endSession)
         {
@@ -186,6 +188,9 @@ internal static class TwirlSession
             move.Rotations);
         state.SegmentTimer = state.ActiveSpinFrames;
         state.SpinElapsed = 0;
+        state.SpinHasLastBladeSample = false;
+        state.SpinInteractedObjects ??= new HashSet<PhysicalObject>();
+        state.SpinInteractedObjects.Clear();
         TwirlSpinFeedback.OnEnterSpin(player, state);
     }
 

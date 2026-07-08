@@ -1,33 +1,13 @@
-using BepInEx.Logging;
 using RainMeadow;
 using System;
-using System.Reflection;
 using UnityEngine;
 
 namespace TrickSpear;
 
 internal static class TwirlMeadowCombat
 {
-    private static Delegate? _weaponCreatureDeflectRpc;
-
     internal static bool UseOnlineCombatSync =>
         TwirlNetworkGuard.IsOnlineSession && TwirlNetworkGuard.AllowCombatPhysics;
-
-    internal static void BindRpcMethods(ManualLogSource logger)
-    {
-        var method = typeof(RPCs).GetMethod(
-            "Weapon_CreatureDeflect",
-            BindingFlags.Public | BindingFlags.Static);
-        if (method == null)
-        {
-            logger.LogWarning("TrickSpear could not bind Rain Meadow Weapon_CreatureDeflect RPC");
-            return;
-        }
-
-        _weaponCreatureDeflectRpc = Delegate.CreateDelegate(
-            typeof(Action<OnlinePhysicalObject, RealizedWeaponState, bool, bool>),
-            method);
-    }
 
     internal static void DeflectThrownWeapon(Weapon weapon, Vector2 deflectVel, Player parryingPlayer, Room? room)
     {
@@ -65,7 +45,7 @@ internal static class TwirlMeadowCombat
         Vector2 impulse,
         Func<bool> tryLocalApply)
     {
-        if (!spear.abstractPhysicalObject.IsLocal())
+        if (TwirlMeadowCombat.UseOnlineCombatSync && !spear.abstractPhysicalObject.IsLocal())
         {
             return false;
         }
@@ -136,7 +116,7 @@ internal static class TwirlMeadowCombat
 
         if (weapon.abstractPhysicalObject.GetOnlineObject() is not OnlinePhysicalObject onlineWeapon
             || onlineWeapon.isMine
-            || _weaponCreatureDeflectRpc == null)
+            || TwirlMeadowBindings.WeaponCreatureDeflect == null)
         {
             return;
         }
@@ -147,9 +127,13 @@ internal static class TwirlMeadowCombat
             return;
         }
 
-        onlineWeapon.Lock(
-            "parry",
-            onlineWeapon.owner.InvokeRPC(_weaponCreatureDeflectRpc, onlineWeapon, state, false, false));
+        var rpcEvent = onlineWeapon.owner.InvokeRPC(
+            TwirlMeadowBindings.WeaponCreatureDeflect,
+            onlineWeapon,
+            state,
+            false,
+            false);
+        TwirlMeadowBindings.LockEntity(onlineWeapon, "parry", rpcEvent);
         BroadcastWeaponDeflect(onlineWeapon, state);
     }
 
@@ -173,7 +157,7 @@ internal static class TwirlMeadowCombat
     private static void BroadcastWeaponDeflect(OnlinePhysicalObject onlineWeapon, RealizedWeaponState state)
     {
         var participants = onlineWeapon.roomSession?.participants;
-        if (participants == null || _weaponCreatureDeflectRpc == null)
+        if (participants == null || TwirlMeadowBindings.WeaponCreatureDeflect == null)
         {
             return;
         }
@@ -182,7 +166,12 @@ internal static class TwirlMeadowCombat
         {
             if (participant is not null && participant != onlineWeapon.owner && !participant.isMe)
             {
-                participant.InvokeRPC(_weaponCreatureDeflectRpc, onlineWeapon, state, false, false);
+                participant.InvokeRPC(
+                    TwirlMeadowBindings.WeaponCreatureDeflect,
+                    onlineWeapon,
+                    state,
+                    false,
+                    false);
             }
         }
     }
