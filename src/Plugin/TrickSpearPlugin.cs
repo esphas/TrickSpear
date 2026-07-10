@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -7,8 +8,8 @@ using UnityEngine;
 
 [assembly: AssemblyTitle("TrickSpear")]
 [assembly: AssemblyDescription("Spear twirl atmospheric mod for Rain World")]
-[assembly: AssemblyVersion("0.1.1")]
-[assembly: AssemblyFileVersion("0.1.1")]
+[assembly: AssemblyVersion("0.1.2")]
+[assembly: AssemblyFileVersion("0.1.2")]
 [assembly: ComVisible(false)]
 
 namespace TrickSpear;
@@ -18,7 +19,7 @@ file static class PluginInfo
     internal const string Guid = "trick_spear";
     internal const string ModId = "trick_spear";
     internal const string Name = "Trick Spear";
-    internal const string Version = "0.1.1";
+    internal const string Version = "0.1.2";
 }
 
 [BepInPlugin(PluginInfo.Guid, PluginInfo.Name, PluginInfo.Version)]
@@ -27,9 +28,7 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
 {
     internal static new BepInEx.Logging.ManualLogSource Logger { get; private set; } = null!;
 
-    internal static PlayerKeybind TwirlKeybind => _twirlKeybind ??= RegisterTwirlKeybind();
-
-    private static PlayerKeybind? _twirlKeybind;
+    internal static PlayerKeybind? TwirlKeybind { get; private set; }
 
     private static bool _hooksApplied;
     private static bool _loggedKeybindStatus;
@@ -39,8 +38,19 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
     {
         Logger = base.Logger;
         On.RainWorld.OnModsInit += OnModsInit;
+
+        try
+        {
+            TwirlKeybind = RegisterTwirlKeybind();
+            Logger.LogInfo($"TrickSpear ready keybind={TwirlKeybind.Id}");
+        }
+        catch (Exception ex)
+        {
+            TwirlKeybind = null;
+            Logger.LogError($"TrickSpear keybind register failed: {ex}");
+        }
+
         ApplyHooks();
-        Logger.LogInfo($"TrickSpear ready keybind={TwirlKeybind.Id}");
     }
 
     private void OnDisable()
@@ -71,7 +81,7 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
                 Logger.LogWarning("TrickSpear SetRegisteredOI failed; is trick_spear enabled in Remix?");
             }
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             Logger.LogError($"TrickSpear options init failed: {ex}");
         }
@@ -84,7 +94,7 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
 
     internal static void TryLogKeybindStatus(Player player)
     {
-        if (_loggedKeybindStatus || player == null)
+        if (_loggedKeybindStatus || player == null || TwirlKeybind == null)
         {
             return;
         }
@@ -97,16 +107,17 @@ public sealed class TrickSpearPlugin : BaseUnityPlugin
 
     private static PlayerKeybind RegisterTwirlKeybind()
     {
-        var existing = PlayerKeybind.Get("trickspear:twirl");
+        const string id = "trickspear:twirl";
+        var existing = PlayerKeybind.Get(id);
         if (existing != null)
         {
             return existing;
         }
 
         return PlayerKeybind.Register(
-            "trickspear:twirl",
+            id,
             PluginInfo.Name,
-            TrickSpearOptions.L(LocKeys.InputTwirl),
+            LocKeys.InputTwirl,
             KeyCode.Q,
             KeyCode.JoystickButton4);
     }

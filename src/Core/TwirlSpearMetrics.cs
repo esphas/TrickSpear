@@ -8,9 +8,11 @@ internal static class TwirlSpearMetrics
 
     internal const float BladeShaftReach = 15f;
 
-    internal const float BladeForwardReach = 2f;
+    internal const float HitShaftReach = TipOffset;
 
-    internal const float HitPadding = 2.8f;
+    internal const float BladeForwardReach = 4f;
+
+    internal const float HitPadding = 4.5f;
 
     internal static bool IsWithinBladeSweep(
         Vector2 target,
@@ -18,7 +20,7 @@ internal static class TwirlSpearMetrics
         Vector2 tip,
         Vector2 pointDir)
     {
-        var start = tip - pointDir * BladeShaftReach;
+        var start = tip - pointDir * HitShaftReach;
         var end = tip + pointDir * BladeForwardReach;
         var dist = TwirlMath.DistancePointToSegment(target, start, end);
         return dist <= targetRadius + HitPadding;

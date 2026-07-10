@@ -1,0 +1,12 @@
+---
+v0.1.2
+键位注册问题修复；扩大物体交互判定
+Fix keybind registration; enlarge object interaction hit detection
+---
+v0.1.1
+初步联机兼容
+Basic multiplayer support
+---
+v0.1.0
+初次发布
+Initial release

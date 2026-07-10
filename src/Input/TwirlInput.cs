@@ -63,8 +63,21 @@ internal static class TwirlInput
 
     private static Snapshot BuildSnapshot(Player player, LatchData latch)
     {
-        var key = TrickSpearPlugin.TwirlKeybind;
         var playerNumber = player.playerState.playerNumber;
+        var key = TrickSpearPlugin.TwirlKeybind;
+        if (key == null)
+        {
+            latch.SessionActive = false;
+            return new Snapshot(
+                justPressed: false,
+                justReleased: false,
+                iicPressed: false,
+                rawPressed: false,
+                checkRaw: false,
+                held: false,
+                sessionActive: false,
+                playerNumber);
+        }
 
         var iicHistory = CustomInputExt.InputHistory(player);
         var rawHistory = CustomInputExt.RawInputHistory(player);
