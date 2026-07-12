@@ -25,25 +25,24 @@ internal static class PlayerHooks
 
         TwirlNetworkGuard.EnsureEntityData(self);
 
-        if (TwirlNetworkGuard.TryHandleRemoteUpdate(self))
+        if (!TwirlNetworkGuard.TryHandleRemoteUpdate(self))
         {
-            return;
+            var snap = TwirlInput.GetSnapshot(self);
+            state.InHoldSession = snap.SessionActive;
+            if (!state.IsTwirling) TryStartTwirl(self, state, snap);     
         }
-
-        var snap = TwirlInput.GetSnapshot(self);
-        state.InHoldSession = snap.SessionActive;
 
         if (state.IsTwirling)
         {
-            UpdateWhileTwirling(self, state, snap);
+            UpdateWhileTwirling(self, state);
             return;
         }
-
-        TryStartTwirl(self, state, snap);
+        
+           
         TwirlAutoTrigger.TryFire(self, state);
     }
 
-    private static void UpdateWhileTwirling(Player self, PlayerTwirlState.Data state, TwirlInput.Snapshot snap)
+    private static void UpdateWhileTwirling(Player self, PlayerTwirlState.Data state)
     {
         var abortReason = TwirlInterrupts.GetHardAbortReason(self, state);
         if (abortReason != null)
@@ -59,10 +58,10 @@ internal static class PlayerHooks
 
         TwirlInterrupts.ApplyDuringTwirl(self, state);
 
-        if (snap.Held)
-        {
-            state.InHoldSession = true;
-        }
+        // if (snap.Held)
+        // {
+        //     state.InHoldSession = true;
+        // }
 
         TwirlPoseTransition.Update(self, state);
         TwirlSession.Tick(state);

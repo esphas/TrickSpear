@@ -5,6 +5,7 @@ obj/
 dist/
 
 lib/*.dll
+lib/*.pdb
 lib/*.xml
 
 GamePaths.local.props
