@@ -26,6 +26,17 @@
 
 在 `GamePaths.local.props` 中配置 `RWDir` 指向 Rain World 安装目录。
 
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<Project>
+  <PropertyGroup>
+    <RWDir>D:\SteamLibrary\steamapps\common\Rain World</RWDir>
+  </PropertyGroup>
+</Project>
+```
+
+然后可以使用开发脚本：
+
 ```powershell
 .\build.ps1          # 编译并将模组打包到 dist/trick_spear/
 .\dev.ps1 link       # 把 dist/trick_spear/ 链接到游戏本地 mod 目录下
