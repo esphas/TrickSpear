@@ -3,6 +3,11 @@
   <Import Project="GamePaths.local.props" Condition="Exists('GamePaths.local.props')" />
 
   <PropertyGroup>
+    <ManagedDir>$(RWDir)\RainWorld_Data\Managed</ManagedDir>
+    <BepInExDir>$(RWDir)\BepInEx</BepInExDir>
+  </PropertyGroup>
+
+  <PropertyGroup>
     <TargetFramework>net48</TargetFramework>
     <LangVersion>latest</LangVersion>
     <Nullable>enable</Nullable>
