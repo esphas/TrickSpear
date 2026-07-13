@@ -8,8 +8,8 @@ using UnityEngine;
 
 [assembly: AssemblyTitle("TrickSpear")]
 [assembly: AssemblyDescription("Spear twirl atmospheric mod for Rain World")]
-[assembly: AssemblyVersion("0.1.2")]
-[assembly: AssemblyFileVersion("0.1.2")]
+[assembly: AssemblyVersion("0.1.3")]
+[assembly: AssemblyFileVersion("0.1.3")]
 [assembly: ComVisible(false)]
 
 namespace TrickSpear;
@@ -19,7 +19,7 @@ file static class PluginInfo
     internal const string Guid = "trick_spear";
     internal const string ModId = "trick_spear";
     internal const string Name = "Trick Spear";
-    internal const string Version = "0.1.2";
+    internal const string Version = "0.1.3";
 }
 
 [BepInPlugin(PluginInfo.Guid, PluginInfo.Name, PluginInfo.Version)]

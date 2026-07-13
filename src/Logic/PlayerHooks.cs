@@ -29,7 +29,7 @@ internal static class PlayerHooks
         {
             var snap = TwirlInput.GetSnapshot(self);
             state.InHoldSession = snap.SessionActive;
-            if (!state.IsTwirling) TryStartTwirl(self, state, snap);     
+            if (!state.IsTwirling) TryStartTwirl(self, state, snap);
         }
 
         if (state.IsTwirling)
@@ -37,31 +37,28 @@ internal static class PlayerHooks
             UpdateWhileTwirling(self, state);
             return;
         }
-        
-           
+
         TwirlAutoTrigger.TryFire(self, state);
     }
 
     private static void UpdateWhileTwirling(Player self, PlayerTwirlState.Data state)
     {
-        var abortReason = TwirlInterrupts.GetHardAbortReason(self, state);
-        if (abortReason != null)
+        if (TwirlNetworkGuard.IsLocalPlayer(self))
         {
-            TwirlDebug.LogHardAbort(
-                abortReason,
-                SpearChecks.GetSpearHandMask(self),
-                state.StartSpearHandMask,
-                state);
-            EndTwirl(self, state, endSession: true);
-            return;
+            var abortReason = TwirlInterrupts.GetHardAbortReason(self, state);
+            if (abortReason != null)
+            {
+                TwirlDebug.LogHardAbort(
+                    abortReason,
+                    SpearChecks.GetSpearHandMask(self),
+                    state.StartSpearHandMask,
+                    state);
+                EndTwirl(self, state, endSession: true);
+                return;
+            }
+
+            TwirlInterrupts.ApplyDuringTwirl(self, state);
         }
-
-        TwirlInterrupts.ApplyDuringTwirl(self, state);
-
-        // if (snap.Held)
-        // {
-        //     state.InHoldSession = true;
-        // }
 
         TwirlPoseTransition.Update(self, state);
         TwirlSession.Tick(state);

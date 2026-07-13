@@ -19,6 +19,11 @@ internal static class TwirlAutoTrigger
             return;
         }
 
+        if (!TwirlNetworkGuard.IsLocalPlayer(player))
+        {
+            return;
+        }
+
         if (!GameplayGuards.CanAutoStartTwirl(player))
         {
             return;
