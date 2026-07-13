@@ -1,6 +1,6 @@
 ---
 v0.1.3
-键位注册问题修复；扩大物体交互判定
+优化联机时的长矛旋转表现
 Made spear twirling in Rain Meadow smoother. 
 ---
 v0.1.2
